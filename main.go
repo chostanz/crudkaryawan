@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	sqlx "github.com/jmoiron/sqlx"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
@@ -16,15 +17,27 @@ import (
 // gaboleh declare di main
 type Karyawan struct {
 	Id     int    `json:"id" db:"id"`
-	Nama   string `json:"name" db:"name"`
-	No_hp  string `json:"phone" db:"phone"`
-	Alamat string `json:"address" db:"address"`
+	Nama   string `json:"name" db:"name" validate:"required"`
+	No_hp  string `json:"phone" db:"phone" validate:"required"`
+	Alamat string `json:"address" db:"address" validate:"required"`
 }
 
 type Respons struct {
 	Message string
 	Status  bool
 	//Data    []Karyawan
+}
+
+type CustomValidator struct {
+	validator *validator.Validate
+}
+
+func (cv *CustomValidator) Validate(i interface{}) error {
+	if err := cv.validator.Struct(i); err != nil {
+		// Optionally, you could return the error to give each route more control over the status code
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	return nil
 }
 
 func main() {
@@ -45,6 +58,8 @@ func main() {
 	e := echo.New()
 
 	e.Use(middleware.CORS()) //untuk allow web server
+	//u := new(Karyawan)
+	e.Validator = &CustomValidator{validator: validator.New()}
 
 	// get method karyawan -> menampilkan data karyawan
 	e.GET("/users", func(c echo.Context) error {
@@ -67,8 +82,11 @@ func main() {
 	// post method karyawan insert data ->
 	e.POST("/users", func(c echo.Context) error {
 		reqBody := Karyawan{}
-
 		c.Bind(&reqBody)
+
+		if err := c.Validate(&reqBody); err != nil {
+			return err
+		}
 
 		// query insert pakek insert into tapi value pakek dari reqbody
 		db.NamedExec("insert into users(name, phone, address) values (:name, :phone, :address)", reqBody)
@@ -79,7 +97,13 @@ func main() {
 	e.PUT("/users/update/:id", func(c echo.Context) error {
 		reqBody := Karyawan{}
 
-		c.Bind(&reqBody)
+		// c.Bind(&reqBody)
+		if err := c.Bind(&reqBody); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+		if err := c.Validate(&reqBody); err != nil {
+			return err
+		}
 		//menggunakan parameter untuk menghapus data dgn nilai dari parameter :id, bertipe string
 		id := c.Param("id")
 		parsedID, err := strconv.Atoi(id) // Konversi id dari string ke int
@@ -91,7 +115,12 @@ func main() {
 
 		// query update value pakek dari reqbody
 		db.NamedExec("update users SET name= :name, phone= :phone, address= :address WHERE id= :id", reqBody)
-
+		// if err = c.Bind(u); err != nil {
+		// 	return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		// }
+		// if err = c.Validate(u); err != nil {
+		// 	return err
+		// }
 		return c.JSON(http.StatusOK, respon)
 	})
 
