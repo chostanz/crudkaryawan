@@ -56,9 +56,7 @@ func main() {
 	}
 
 	e := echo.New()
-
 	e.Use(middleware.CORS()) //untuk allow web server
-	//u := new(Karyawan)
 	e.Validator = &CustomValidator{validator: validator.New()}
 
 	// get method karyawan -> menampilkan data karyawan
@@ -105,52 +103,27 @@ func main() {
 			return err
 		}
 		//menggunakan parameter untuk menghapus data dgn nilai dari parameter :id, bertipe string
-		id := c.Param("id")
-		parsedID, err := strconv.Atoi(id) // Konversi id dari string ke int
+		id, _ := strconv.Atoi(c.Param("id")) // Konversi id dari string ke int
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ID"})
 		}
 		//mengembalikan nilai id ke reqBody.Id (sturct ReqBody Id)
-		reqBody.Id = parsedID
+		reqBody.Id = id
 
 		// query update value pakek dari reqbody
 		db.NamedExec("update users SET name= :name, phone= :phone, address= :address WHERE id= :id", reqBody)
-		// if err = c.Bind(u); err != nil {
-		// 	return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-		// }
-		// if err = c.Validate(u); err != nil {
-		// 	return err
-		// }
+
 		return c.JSON(http.StatusOK, respon)
 	})
 
 	e.DELETE("/users/delete/:id", func(c echo.Context) error {
-		// reqBody := Karyawan{}
-		// c.Bind(&reqBody)
-		// db.NamedExec("DELETE from users WHERE id= :id", reqBody)
-		// return c.JSON(http.StatusOK, respon)
-
-		id := c.Param("id")
-		parsedID, err := strconv.Atoi(id)
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid ID"})
-		}
+		id, _ := strconv.Atoi(c.Param("id"))
 
 		// Lakukan DELETE pada database menggunakan ID yang bertipe int
 		// hapus data dengan id tertentu
-		if err := deleteDataByID(parsedID); err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete data"})
-		}
-
-		return c.NoContent(http.StatusNoContent) // Mengembalikan status 204 No Content
+		db.Exec("DELETE FROM users WHERE id = $1", id)
+		return err
 	})
 
 	e.Logger.Fatal(e.Start(":8080"))
-}
-
-func deleteDataByID(id int) error {
-	db, err := sqlx.Connect("postgres", "user=postgres password=12345 dbname= db_users sslmode=disable")
-
-	db.Exec("DELETE FROM users WHERE id = $1", id)
-	return err
 }
