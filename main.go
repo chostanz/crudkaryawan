@@ -56,6 +56,7 @@ func main() {
 	}
 
 	e := echo.New()
+
 	e.Use(middleware.CORS()) //untuk allow web server
 	e.Validator = &CustomValidator{validator: validator.New()}
 
@@ -75,6 +76,18 @@ func main() {
 			users = append(users, place) //menambah elemen baru menggunakan append ke users
 		}
 		return c.JSON(http.StatusOK, users)
+	})
+
+	//get spesific user
+	e.GET("/users/:id", func(c echo.Context) error {
+
+		id, _ := strconv.Atoi(c.Param("id"))
+
+		user := Karyawan{}
+		err = db.Get(&user, "SELECT * FROM users WHERE id = $1", id)
+
+		return c.JSON(http.StatusOK, user)
+
 	})
 
 	// post method karyawan insert data ->
